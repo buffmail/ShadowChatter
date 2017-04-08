@@ -6,6 +6,36 @@
     android:layout_height="match_parent"
     tools:context="buffmail.shadowchatter.MainActivity">
 
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="0px"
+        android:layout_weight="1">
+
+        <buffmail.shadowchatter.WaveformView
+            android:id="@+id/waveform"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent" />
+
+        <buffmail.shadowchatter.MarkerView
+            android:id="@+id/startmarker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/start_marker"
+            android:nextFocusDown="@+id/endmarker"
+            android:src="@drawable/marker_left" />
+
+        <buffmail.shadowchatter.MarkerView
+            android:id="@+id/endmarker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/end_marker"
+            android:nextFocusDown="@+id/info"
+            android:nextFocusUp="@+id/startmarker"
+            android:src="@drawable/marker_right" />
+
+    </RelativeLayout>
+
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
