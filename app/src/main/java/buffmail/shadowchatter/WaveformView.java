@@ -21,12 +21,16 @@ import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.Pair;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+
+import java.util.ArrayList;
 
 import buffmail.shadowchatter.soundfile.SoundFile;
 
@@ -53,6 +57,8 @@ public class WaveformView extends View {
         public void waveformZoomIn();
         public void waveformZoomOut();
     };
+
+    private static final String TAG = "WaveformView";
 
     // Colors
     private Paint mGridPaint;
@@ -82,6 +88,7 @@ public class WaveformView extends View {
     private GestureDetector mGestureDetector;
     private ScaleGestureDetector mScaleGestureDetector;
     private boolean mInitialized;
+    private int[] mSilenceFrames;
 
     public WaveformView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -163,6 +170,7 @@ public class WaveformView extends View {
         mSelectionEnd = 0;
         mDensity = 1.0f;
         mInitialized = false;
+        mSilenceFrames = null;
     }
 
     @Override
@@ -261,6 +269,12 @@ public class WaveformView extends View {
         return (int)(1.0 * seconds * mSampleRate / mSamplesPerFrame + 0.5);
     }
 
+    public double framesToSeconds(int frames) {
+        final double samples = 1.f * mSamplesPerFrame * frames;
+        final double sec = samples / mSampleRate;
+        return sec;
+    }
+
     public int secondsToPixels(double seconds) {
         double z = mZoomFactorByZoomLevel[mZoomLevel];
         return (int)(z * seconds * mSampleRate / mSamplesPerFrame + 0.5);
@@ -342,6 +356,24 @@ public class WaveformView extends View {
         if (width > measuredWidth)
             width = measuredWidth;
 
+
+        // Draw silence chunks bg
+        {
+            int prevXPos = 0;
+            for (int idx = 0; idx < mSilenceFrames.length; ++idx) {
+                final int frame = mSilenceFrames[idx];
+                final int absXPos = secondsToPixels(framesToSeconds(frame));
+                final int xpos = absXPos - start;
+                if (xpos < 0 || xpos > width)
+                    continue;
+                final Rect r = new Rect(prevXPos, 0, xpos, measuredHeight);
+                if (idx % 2 == 0) {
+                    canvas.drawRect(r, mUnselectedBkgndLinePaint);
+                }
+                prevXPos = xpos;
+            }
+        }
+
         // Draw grid
         double onePixelInSecs = pixelsToSeconds(1);
         boolean onlyEveryFiveSecs = (onePixelInSecs > 1.0 / 50.0);
@@ -367,8 +399,6 @@ public class WaveformView extends View {
                     i + start < mSelectionEnd) {
                 paint = mSelectedLinePaint;
             } else {
-                drawWaveformLine(canvas, i, 0, measuredHeight,
-                        mUnselectedBkgndLinePaint);
                 paint = mUnselectedLinePaint;
             }
             drawWaveformLine(
@@ -524,6 +554,8 @@ public class WaveformView extends View {
             heights[i] = value * value;
         }
 
+        computeSilenceChunks(heights);
+
         mNumZoomLevels = 5;
         mLenByZoomLevel = new int[5];
         mZoomFactorByZoomLevel = new double[5];
@@ -575,6 +607,44 @@ public class WaveformView extends View {
         mInitialized = true;
     }
 
+    private void computeSilenceChunks(double[] heights) {
+        final double silenceSpanSec = 0.2f;
+        final int silenceFrames = secondsToFrames(silenceSpanSec);
+
+        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
+
+        int firstEntry = -1;
+        for (int i = 0; i < heights.length; ++i) {
+            Log.i(TAG, String.format("frame : %d (%.3f sec), value : %f",
+                    i, framesToSeconds(i), heights[i]));
+            double value = heights[i];
+            if (value < 0.01f) {
+                if (firstEntry != -1)
+                    continue;
+                firstEntry = i;
+                continue;
+            } else {
+                if (firstEntry != -1){
+                    final int currEntry = i;
+                    if (currEntry - firstEntry >= silenceFrames) {
+                        ranges.add(Pair.create(firstEntry, currEntry));
+                    }
+                    firstEntry = -1;
+                }
+            }
+        }
+
+        mSilenceFrames = new int[ranges.size()];
+        for (int i = 0; i < ranges.size(); ++i) {
+            Pair<Integer, Integer> p = ranges.get(i);
+            final int len = p.second - p.first;
+            final int middleFrame = (p.first + p.second) / 2;
+
+            Log.i(TAG, String.format("%d~%d (%.2f sec)", p.first, p.second - 1,
+                    framesToSeconds(middleFrame)));
+            mSilenceFrames[i] = middleFrame;
+        }
+    }
     /**
      * Called the first time we need to draw when the zoom level has changed
      * or the screen is resized

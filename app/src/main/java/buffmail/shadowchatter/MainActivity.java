@@ -5,6 +5,7 @@ import android.app.ProgressDialog;
 import android.os.Handler;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.widget.RelativeLayout;
 
 import java.io.File;
@@ -14,6 +15,8 @@ import buffmail.shadowchatter.soundfile.SoundFile;
 public class MainActivity extends Activity
         implements MarkerView.MarkerListener,
         WaveformView.WaveformListener {
+
+    private final String TAG = "MainActivity";
 
     private String mFilename = "/storage/sdcard/media/audio/music/aaa.m4a";
     private ProgressDialog mProgressDialog;
@@ -69,6 +72,7 @@ public class MainActivity extends Activity
         loadGui();
 
         loadFromFile(mFilename);
+        Log.i(TAG, "onCreate called");
     }
 
     @Override
@@ -196,6 +200,7 @@ public class MainActivity extends Activity
         mFlingVelocity = (int)(-vx);
         updateDisplay();
     }
+
     public void waveformDraw() {
         mWidth = mWaveformView.getMeasuredWidth();
         if (mOffsetGoal != mOffset && !mKeyDown)
@@ -206,6 +211,7 @@ public class MainActivity extends Activity
             updateDisplay();
         }
     }
+
     public void waveformZoomIn() {}
     public void waveformZoomOut() {}
 
