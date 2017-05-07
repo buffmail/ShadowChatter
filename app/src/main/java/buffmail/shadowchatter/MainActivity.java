@@ -31,8 +31,6 @@ public class MainActivity extends Activity
     private boolean mTouchDragging;
     private float mTouchStart;
     private int mTouchInitialOffset;
-    private int mTouchInitialStartPos;
-    private int mTouchInitialEndPos;
     private long mWaveformTouchStartMsec;
     private int mPlayStartMsec;
     private int mPlayEndMsec;
@@ -56,12 +54,15 @@ public class MainActivity extends Activity
     private int mMaxPos;
     private int mStartPos;
     private int mEndPos;
+    private int mPlayChunkIdx;
     private boolean mStartVisible;
     private boolean mEndVisible;
 
     private boolean mKeyDown;
 
     private ImageButton mPlayButton;
+    private ImageButton mRewindButton;
+    private ImageButton mFfwdButton;
 
     private Thread mLoadingSoundFileThread;
 
@@ -78,6 +79,8 @@ public class MainActivity extends Activity
         mKeyDown = false;
 
         mHandler = new Handler();
+
+        mPlayChunkIdx = 0;
 
         loadGui();
 
@@ -290,6 +293,10 @@ public class MainActivity extends Activity
 
         mPlayButton = (ImageButton)findViewById(R.id.play);
         mPlayButton.setOnClickListener(mPlayListener);
+        mRewindButton = (ImageButton)findViewById(R.id.rew);
+        mRewindButton.setOnClickListener(mRewindListener);
+        mFfwdButton = (ImageButton)findViewById(R.id.ffwd);
+        mFfwdButton.setOnClickListener(mFfwdListener);
         mWaveformView = (WaveformView)findViewById(R.id.waveform);
         mWaveformView.setListener(this);
 
@@ -327,6 +334,12 @@ public class MainActivity extends Activity
             setOffsetGoalNoUpdate(frames - mWidth / 2);
             if (now >= mPlayEndMsec) {
                 handlePause();
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        onPlay(mStartPos);
+                    }
+                });
             }
         }
 
@@ -474,6 +487,12 @@ public class MainActivity extends Activity
                 @Override
                 public void onCompletion() {
                     handlePause();
+                    mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            onPlay(mStartPos);
+                        }
+                    });
                 }
             });
             mIsPlaying = true;
@@ -487,7 +506,7 @@ public class MainActivity extends Activity
         }
     }
     private void resetPositions() {
-        WaveformView.PlayChunk chunk = mWaveformView.getChunk(0);
+        WaveformView.PlayChunk chunk = mWaveformView.getChunk(mPlayChunkIdx);
         if (chunk == null){
             mStartPos = mWaveformView.secondsToPixels(0.0);
             mEndPos = mWaveformView.secondsToPixels(15.0);
@@ -572,6 +591,35 @@ public class MainActivity extends Activity
     private OnClickListener mPlayListener = new OnClickListener() {
         public void onClick(View sender) {
             onPlay(mStartPos);
+        }
+    };
+
+    private OnClickListener mFfwdListener = new OnClickListener() {
+        public void onClick(View sender) {
+            if (mIsPlaying) {
+                final int chunkCount = mWaveformView.getChunkNums();
+                if (mPlayChunkIdx + 1 >= chunkCount)
+                    return;
+
+                handlePause();
+                ++mPlayChunkIdx;
+                resetPositions();
+                onPlay(mStartPos);
+            }
+        }
+    };
+
+    private OnClickListener mRewindListener = new OnClickListener() {
+        public void onClick(View sender) {
+            if (mIsPlaying) {
+                if (mPlayChunkIdx == 0)
+                    return;
+
+                handlePause();
+                --mPlayChunkIdx;
+                resetPositions();
+                onPlay(mStartPos);
+            }
         }
     };
 
