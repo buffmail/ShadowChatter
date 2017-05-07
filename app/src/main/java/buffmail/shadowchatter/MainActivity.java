@@ -487,8 +487,15 @@ public class MainActivity extends Activity
         }
     }
     private void resetPositions() {
-        mStartPos = mWaveformView.secondsToPixels(0.0);
-        mEndPos = mWaveformView.secondsToPixels(15.0);
+        WaveformView.PlayChunk chunk = mWaveformView.getChunk(0);
+        if (chunk == null){
+            mStartPos = mWaveformView.secondsToPixels(0.0);
+            mEndPos = mWaveformView.secondsToPixels(15.0);
+            return;
+        }
+
+        mStartPos = mWaveformView.secondsToPixels(chunk.startSec);
+        mEndPos = mWaveformView.secondsToPixels(chunk.endSec);
     }
 
     private long getCurrentTime() {

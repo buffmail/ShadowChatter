@@ -58,6 +58,15 @@ public class WaveformView extends View {
         public void waveformZoomOut();
     };
 
+    class PlayChunk {
+        double startSec;
+        double endSec;
+        PlayChunk(double startSec, double endSec) {
+            this.startSec = startSec;
+            this.endSec = endSec;
+        }
+    };
+
     private static final String TAG = "WaveformView";
 
     // Colors
@@ -88,7 +97,7 @@ public class WaveformView extends View {
     private GestureDetector mGestureDetector;
     private ScaleGestureDetector mScaleGestureDetector;
     private boolean mInitialized;
-    private int[] mSilenceFrames;
+    private PlayChunk[] mPlayChunks;
 
     public WaveformView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -170,7 +179,7 @@ public class WaveformView extends View {
         mSelectionEnd = 0;
         mDensity = 1.0f;
         mInitialized = false;
-        mSilenceFrames = null;
+        mPlayChunks = null;
     }
 
     @Override
@@ -358,20 +367,20 @@ public class WaveformView extends View {
 
 
         // Draw silence chunks bg
-        {
-            int prevXPos = 0;
-            for (int idx = 0; idx < mSilenceFrames.length; ++idx) {
-                final int frame = mSilenceFrames[idx];
-                final int absXPos = secondsToPixels(framesToSeconds(frame));
-                final int xpos = absXPos - start;
-                if (xpos < 0 || xpos > width)
-                    continue;
-                final Rect r = new Rect(prevXPos, 0, xpos, measuredHeight);
-                if (idx % 2 == 0) {
-                    canvas.drawRect(r, mUnselectedBkgndLinePaint);
-                }
-                prevXPos = xpos;
-            }
+        for (int idx = 0; idx < mPlayChunks.length; ++idx) {
+            if (idx % 2 == 1)
+                continue;
+
+            final PlayChunk chunk = mPlayChunks[idx];
+            final int absStartPos = secondsToPixels(chunk.startSec);
+            final int absEndPos = secondsToPixels(chunk.endSec);
+            final int startPos = absStartPos - start;
+            final int endPos = absEndPos - start;
+            if (startPos > width || endPos < 0)
+                continue;
+
+            final Rect r = new Rect(startPos, 0, endPos, measuredHeight);
+            canvas.drawRect(r, mUnselectedBkgndLinePaint);
         }
 
         // Draw grid
@@ -554,7 +563,7 @@ public class WaveformView extends View {
             heights[i] = value * value;
         }
 
-        computeSilenceChunks(heights);
+        computePlayChunks(heights);
 
         mNumZoomLevels = 5;
         mLenByZoomLevel = new int[5];
@@ -607,42 +616,50 @@ public class WaveformView extends View {
         mInitialized = true;
     }
 
-    private void computeSilenceChunks(double[] heights) {
+    private void computePlayChunks(double[] heights) {
         final double silenceSpanSec = 0.2f;
+        final double silenceValue = 0.01f;
         final int silenceFrames = secondsToFrames(silenceSpanSec);
 
-        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
+        ArrayList<Double> silenceSecs = new ArrayList<>();
 
-        int firstEntry = -1;
+        int silenceStartFrame = -1;
         for (int i = 0; i < heights.length; ++i) {
             Log.i(TAG, String.format("frame : %d (%.3f sec), value : %f",
                     i, framesToSeconds(i), heights[i]));
             double value = heights[i];
-            if (value < 0.01f) {
-                if (firstEntry != -1)
+            if (value < silenceValue) {
+                if (silenceStartFrame != -1)
                     continue;
-                firstEntry = i;
+                silenceStartFrame = i;
                 continue;
             } else {
-                if (firstEntry != -1){
-                    final int currEntry = i;
-                    if (currEntry - firstEntry >= silenceFrames) {
-                        ranges.add(Pair.create(firstEntry, currEntry));
+                if (silenceStartFrame != -1){
+                    final int currFrame = i;
+                    if (currFrame - silenceStartFrame >= silenceFrames) {
+                        final int middleFrame = (currFrame + silenceStartFrame) / 2;
+                        silenceSecs.add(framesToSeconds(middleFrame));
                     }
-                    firstEntry = -1;
+                    silenceStartFrame = -1;
                 }
             }
         }
 
-        mSilenceFrames = new int[ranges.size()];
-        for (int i = 0; i < ranges.size(); ++i) {
-            Pair<Integer, Integer> p = ranges.get(i);
-            final int len = p.second - p.first;
-            final int middleFrame = (p.first + p.second) / 2;
+        if (heights.length == 0)
+            return;
 
-            Log.i(TAG, String.format("%d~%d (%.2f sec)", p.first, p.second - 1,
-                    framesToSeconds(middleFrame)));
-            mSilenceFrames[i] = middleFrame;
+        if (silenceSecs.isEmpty()){
+            return;
+        }
+
+        final double totalSec = framesToSeconds(heights.length - 1);
+
+        final int chunkSize = silenceSecs.size() + 1;
+        mPlayChunks = new PlayChunk[chunkSize];
+        for (int i = 0; i < mPlayChunks.length; ++i) {
+            final double startSec = (i==0) ? 0 : mPlayChunks[i-1].endSec;
+            final double endSec = (i < silenceSecs.size()) ? silenceSecs.get(i) : totalSec;
+            mPlayChunks[i] = new PlayChunk(startSec, endSec);
         }
     }
     /**
@@ -656,5 +673,19 @@ public class WaveformView extends View {
             mHeightsAtThisZoomLevel[i] =
                     (int)(mValuesByZoomLevel[mZoomLevel][i] * halfHeight);
         }
+    }
+
+    public int getChunkNums() {
+        if (mPlayChunks == null)
+            return 0;
+        return mPlayChunks.length;
+    }
+
+    public PlayChunk getChunk(int idx){
+        if (mPlayChunks == null)
+            return null;
+        if (idx < 0 || idx >= mPlayChunks.length)
+            return null;
+        return mPlayChunks[idx];
     }
 }
