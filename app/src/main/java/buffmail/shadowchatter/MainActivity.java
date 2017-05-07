@@ -25,6 +25,12 @@ public class MainActivity extends Activity
     private SoundFile mSoundFile;
     private File mFile;
     private SamplePlayer mPlayer;
+    private boolean mTouchDragging;
+    private float mTouchStart;
+    private int mTouchInitialOffset;
+    private int mTouchInitialStartPos;
+    private int mTouchInitialEndPos;
+    private long mWaveformTouchStartMsec;
     private int mPlayStartMsec;
     private int mPlayEndMsec;
     private Handler mHandler;
@@ -160,14 +166,14 @@ public class MainActivity extends Activity
 
         mMaxPos = mWaveformView.maxPos();
 
+        mTouchDragging = false;
+
         mOffset = 0;
         mOffsetGoal = 0;
         mFlingVelocity = 0;
         resetPositions();
         if (mEndPos > mMaxPos)
             mEndPos = mMaxPos;
-
-        onPlay(mStartPos);
     }
 
     public void markerTouchStart(MarkerView marker, float pos) {}
@@ -192,10 +198,44 @@ public class MainActivity extends Activity
     public void markerKeyUp() {}
     public void markerDraw() {}
 
-    public void waveformTouchStart(float x) {}
-    public void waveformTouchMove(float x) {}
-    public void waveformTouchEnd() {}
+    public void waveformTouchStart(float x) {
+        mTouchDragging = true;
+        mTouchStart = x;
+        mTouchInitialOffset = mOffset;
+        mFlingVelocity = 0;
+        mWaveformTouchStartMsec = getCurrentTime();
+        Log.i(TAG, String.format("waveformTouchStart : %.1f", x));
+    }
+
+    public void waveformTouchMove(float x) {
+        mOffset = trap((int)(mTouchInitialOffset * (mTouchStart - x)));
+        updateDisplay();
+        Log.i(TAG, String.format("waveformTouchMove : %.1f", x));
+    }
+    public void waveformTouchEnd() {
+        mTouchDragging = false;
+        mOffsetGoal = mOffset;
+
+        long elapsedMsec = getCurrentTime() - mWaveformTouchStartMsec;
+        if (elapsedMsec < 300) {
+            if (mIsPlaying) {
+                int seekMsec = mWaveformView.pixelsToMillisecs(
+                        (int)(mTouchStart + mOffset));
+                if (seekMsec >= mPlayStartMsec &&
+                        seekMsec < mPlayEndMsec) {
+                    mPlayer.seekTo(seekMsec);
+                } else {
+                    handlePause();
+                }
+            } else {
+                onPlay((int)(mTouchStart + mOffset));
+            }
+        }
+        Log.i(TAG, String.format("waveformTouchEnd"));
+    }
+
     public void waveformFling(float vx) {
+        mTouchDragging = false;
         mOffsetGoal = mOffset;
         mFlingVelocity = (int)(-vx);
         updateDisplay();
@@ -212,8 +252,25 @@ public class MainActivity extends Activity
         }
     }
 
-    public void waveformZoomIn() {}
-    public void waveformZoomOut() {}
+    public void waveformZoomIn() {
+        mWaveformView.zoomIn();
+        mStartPos = mWaveformView.getStart();
+        mEndPos = mWaveformView.getEnd();
+        mMaxPos = mWaveformView.maxPos();
+        mOffset = mWaveformView.getOffset();
+        mOffsetGoal = mOffset;
+        updateDisplay();
+    }
+
+    public void waveformZoomOut() {
+        mWaveformView.zoomOut();
+        mStartPos = mWaveformView.getStart();
+        mEndPos = mWaveformView.getEnd();
+        mMaxPos = mWaveformView.maxPos();
+        mOffset = mWaveformView.getOffset();
+        mOffsetGoal = mOffset;
+        updateDisplay();
+    }
 
     private void loadGui() {
         setContentView(R.layout.activity_main);
@@ -265,7 +322,7 @@ public class MainActivity extends Activity
             }
         }
 
-        //if (!mTouchDragging)
+        if (!mTouchDragging)
         {
             int offsetDelta;
 
@@ -429,6 +486,10 @@ public class MainActivity extends Activity
     }
 
     private void setOffsetGoalNoUpdate(int offset) {
+        if (mTouchDragging) {
+            return;
+        }
+
         mOffsetGoal = offset;
         if (mOffsetGoal + mWidth / 2 > mMaxPos)
             mOffsetGoal = mMaxPos - mWidth / 2;
@@ -481,5 +542,13 @@ public class MainActivity extends Activity
             return xWhole + ".0" + xFrac;
         else
             return xWhole + "." + xFrac;
+    }
+
+    private int trap(int pos) {
+        if (pos < 0)
+            return 0;
+        if (pos > mMaxPos)
+            return mMaxPos;
+        return pos;
     }
 }
