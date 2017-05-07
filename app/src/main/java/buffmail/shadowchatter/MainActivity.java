@@ -6,6 +6,9 @@ import android.os.Handler;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.ImageButton;
 import android.widget.RelativeLayout;
 
 import java.io.File;
@@ -58,6 +61,8 @@ public class MainActivity extends Activity
 
     private boolean mKeyDown;
 
+    private ImageButton mPlayButton;
+
     private Thread mLoadingSoundFileThread;
 
     @Override
@@ -71,7 +76,6 @@ public class MainActivity extends Activity
 
         mSoundFile = null;
         mKeyDown = false;
-        setContentView(R.layout.activity_main);
 
         mHandler = new Handler();
 
@@ -284,8 +288,12 @@ public class MainActivity extends Activity
         mMarkerTopOffset = (int)(10 * mDensity);
         mMarkerBottomOffset = (int)(10 * mDensity);
 
+        mPlayButton = (ImageButton)findViewById(R.id.play);
+        mPlayButton.setOnClickListener(mPlayListener);
         mWaveformView = (WaveformView)findViewById(R.id.waveform);
         mWaveformView.setListener(this);
+
+        enableDisableButtons();
 
         mMaxPos = 0;
         if (mSoundFile != null && !mWaveformView.hasSoundFile()) {
@@ -439,6 +447,7 @@ public class MainActivity extends Activity
         }
         mWaveformView.setPlayback(-1);
         mIsPlaying = false;
+        enableDisableButtons();
     }
 
     private synchronized void onPlay(int startPosition) {
@@ -472,6 +481,7 @@ public class MainActivity extends Activity
             mPlayer.seekTo(mPlayStartMsec);
             mPlayer.start();
             updateDisplay();
+            enableDisableButtons();
         } catch (Exception e) {
             return;
         }
@@ -551,4 +561,21 @@ public class MainActivity extends Activity
             return mMaxPos;
         return pos;
     }
+
+    private OnClickListener mPlayListener = new OnClickListener() {
+        public void onClick(View sender) {
+            onPlay(mStartPos);
+        }
+    };
+
+    private void enableDisableButtons() {
+        if (mIsPlaying) {
+            mPlayButton.setImageResource(android.R.drawable.ic_media_pause);
+            mPlayButton.setContentDescription(getResources().getText(R.string.stop));
+        } else {
+            mPlayButton.setImageResource(android.R.drawable.ic_media_play);
+            mPlayButton.setContentDescription(getResources().getText(R.string.play));
+        }
+    }
+
 }

@@ -8,4 +8,18 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <style name="ToolbarBackground">
+        <item name="android:background">#222233</item>
+    </style>
+    <style name="HorizontalDividerTop">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">1px</item>
+        <item name="android:background">#666677</item>
+    </style>
+    <style name="HorizontalDividerBottom">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">1px</item>
+        <item name="android:background">#000022</item>
+    </style>
+
 </resources>
