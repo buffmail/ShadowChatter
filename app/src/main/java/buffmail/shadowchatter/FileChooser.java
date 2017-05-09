@@ -105,13 +105,18 @@ public class FileChooser {
             if (path.getParentFile() == null) {
                 fileList = new String[dirs.length + files.length];
             } else {
-                fileList = new String[dirs.length + files.length + 1];
+                int dirLen = (dirs == null) ? 0 : dirs.length;
+                int fileLen = (files == null) ? 0 : files.length;
+                fileList = new String[dirLen + fileLen + 1];
                 fileList[i++] = PARENT_DIR;
             }
-            Arrays.sort(dirs);
-            Arrays.sort(files);
-            for (File dir : dirs) { fileList[i++] = dir.getName(); }
-            for (File file : files ) { fileList[i++] = file.getName(); }
+
+            if (dirs != null && files != null) {
+                Arrays.sort(dirs);
+                Arrays.sort(files);
+                for (File dir : dirs) { fileList[i++] = dir.getName(); }
+                for (File file : files ) { fileList[i++] = file.getName(); }
+            }
 
             // refresh the user interface
             dialog.setTitle(currentPath.getPath());

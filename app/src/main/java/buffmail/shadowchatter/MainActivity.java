@@ -2,20 +2,15 @@ package buffmail.shadowchatter;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
-import android.content.Intent;
-import android.database.Cursor;
-import android.net.Uri;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Bundle;
-import android.provider.DocumentsContract;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.RelativeLayout;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import java.io.File;
 
@@ -69,6 +64,8 @@ public class MainActivity extends Activity
     private ImageButton mPlayButton;
     private ImageButton mRewindButton;
     private ImageButton mFfwdButton;
+
+    private TextView mPositionText;
 
     private Thread mLoadingSoundFileThread;
 
@@ -309,6 +306,7 @@ public class MainActivity extends Activity
         mRewindButton.setOnClickListener(mRewindListener);
         mFfwdButton = (ImageButton)findViewById(R.id.ffwd);
         mFfwdButton.setOnClickListener(mFfwdListener);
+        mPositionText = (TextView)findViewById(R.id.position_text);
         mWaveformView = (WaveformView)findViewById(R.id.waveform);
         mWaveformView.setListener(this);
 
@@ -527,6 +525,9 @@ public class MainActivity extends Activity
 
         mStartPos = mWaveformView.secondsToPixels(chunk.startSec);
         mEndPos = mWaveformView.secondsToPixels(chunk.endSec);
+
+        String position = String.format("%d / %d", mPlayChunkIdx + 1, mWaveformView.getChunkNums());
+        mPositionText.setText(position);
     }
 
     private long getCurrentTime() {

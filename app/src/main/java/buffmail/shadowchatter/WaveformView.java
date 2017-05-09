@@ -24,7 +24,6 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.util.Pair;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -625,8 +624,6 @@ public class WaveformView extends View {
 
         int silenceStartFrame = -1;
         for (int i = 0; i < heights.length; ++i) {
-            Log.i(TAG, String.format("frame : %d (%.3f sec), value : %f",
-                    i, framesToSeconds(i), heights[i]));
             double value = heights[i];
             if (value < silenceValue) {
                 if (silenceStartFrame != -1)
