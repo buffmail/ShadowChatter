@@ -2,14 +2,20 @@ package buffmail.shadowchatter;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import java.io.File;
 
@@ -84,8 +90,15 @@ public class MainActivity extends Activity
 
         loadGui();
 
-        loadFromFile(mFilename);
-        Log.i(TAG, "onCreate called");
+        FileChooser chooser = new FileChooser(this);
+        chooser.setExtension(".mp3");
+        chooser.setFileListener(new FileChooser.FileSelectedListener() {
+            @Override
+            public void fileSelected(File file) {
+                loadFromFile(file.getAbsolutePath());
+            }
+        });
+        chooser.showDialog();
     }
 
     @Override
@@ -106,7 +119,6 @@ public class MainActivity extends Activity
         closeThread(mLoadingSoundFileThread);
         super.onDestroy();
     }
-
     private void closeThread(Thread thread) {
         if (thread != null && thread.isAlive()) {
             try {
