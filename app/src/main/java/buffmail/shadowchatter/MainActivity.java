@@ -9,7 +9,6 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.io.File;
@@ -17,12 +16,10 @@ import java.io.File;
 import buffmail.shadowchatter.soundfile.SoundFile;
 
 public class MainActivity extends Activity
-        implements MarkerView.MarkerListener,
-        WaveformView.WaveformListener {
+        implements WaveformView.WaveformListener {
 
     private final String TAG = "MainActivity";
 
-    private String mFilename = "/storage/sdcard/media/audio/music/aaa.m4a";
     private ProgressDialog mProgressDialog;
     private long mLoadingLastUpdateTime;
     private Boolean mLoadingKeepGoing;
@@ -38,14 +35,8 @@ public class MainActivity extends Activity
     private Handler mHandler;
     private boolean mIsPlaying;
     private WaveformView mWaveformView;
-    private MarkerView mStartMarker;
-    private MarkerView mEndMarker;
 
     private float mDensity;
-    private int mMarkerLeftInset;
-    private int mMarkerRightInset;
-    private int mMarkerTopOffset;
-    private int mMarkerBottomOffset;
 
     private int mOffset;
     private int mOffsetGoal;
@@ -56,8 +47,6 @@ public class MainActivity extends Activity
     private int mStartPos;
     private int mEndPos;
     private int mPlayChunkIdx;
-    private boolean mStartVisible;
-    private boolean mEndVisible;
 
     private boolean mKeyDown;
 
@@ -192,28 +181,6 @@ public class MainActivity extends Activity
             mEndPos = mMaxPos;
     }
 
-    public void markerTouchStart(MarkerView marker, float pos) {}
-    public void markerTouchMove(MarkerView marker, float pos) {}
-    public void markerTouchEnd(MarkerView marker) {}
-    public void markerFocus(MarkerView marker) {
-        mKeyDown = false;
-        if (marker == mStartMarker) {
-            setOffsetGoalStartNoUpdate();
-        } else {
-            setOffsetGoalEndNoUpdate();
-        }
-        mHandler.postDelayed(new Runnable() {
-            public void run() {
-                updateDisplay();
-            }
-        }, 100);
-    }
-    public void markerLeft(MarkerView marker, int velocity) {}
-    public void markerRight(MarkerView marker, int velocity) {}
-    public void markerEnter(MarkerView marker) {}
-    public void markerKeyUp() {}
-    public void markerDraw() {}
-
     public void waveformTouchStart(float x) {
         mTouchDragging = true;
         mTouchStart = x;
@@ -295,11 +262,6 @@ public class MainActivity extends Activity
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
         mDensity = metrics.density;
 
-        mMarkerLeftInset = (int)(46 * mDensity);
-        mMarkerRightInset = (int)(48 * mDensity);
-        mMarkerTopOffset = (int)(10 * mDensity);
-        mMarkerBottomOffset = (int)(10 * mDensity);
-
         mPlayButton = (ImageButton)findViewById(R.id.play);
         mPlayButton.setOnClickListener(mPlayListener);
         mRewindButton = (ImageButton)findViewById(R.id.rew);
@@ -318,20 +280,6 @@ public class MainActivity extends Activity
             mWaveformView.recomputeHeights(mDensity);
             mMaxPos = mWaveformView.maxPos();
         }
-
-        mStartMarker = (MarkerView)findViewById(R.id.startmarker);
-        mStartMarker.setListener(this);
-        mStartMarker.setAlpha(1f);
-        mStartMarker.setFocusable(true);
-        mStartMarker.setFocusableInTouchMode(true);
-        mStartVisible = true;
-
-        mEndMarker = (MarkerView)findViewById(R.id.endmarker);
-        mEndMarker.setListener(this);
-        mEndMarker.setAlpha(1f);
-        mEndMarker.setFocusable(true);
-        mEndMarker.setFocusableInTouchMode(true);
-        mEndVisible = true;
 
         updateDisplay();
     }
@@ -398,70 +346,6 @@ public class MainActivity extends Activity
 
         mWaveformView.setParameters(mStartPos, mEndPos, mOffset);
         mWaveformView.invalidate();
-
-        mStartMarker.setContentDescription(
-                getResources().getText(R.string.start_marker) + " " +
-                        formatTime(mStartPos));
-        mEndMarker.setContentDescription(
-                getResources().getText(R.string.end_marker) + " " +
-                        formatTime(mEndPos));
-
-        int startX = mStartPos - mOffset - mMarkerLeftInset;
-        if (startX + mStartMarker.getWidth() >= 0) {
-            if (!mStartVisible) {
-                mHandler.postDelayed(new Runnable() {
-                    public void run() {
-                        mStartVisible = true;
-                        mStartMarker.setAlpha(1f);
-                    }
-                }, 0);
-            }
-        } else {
-            if (mStartVisible) {
-                mStartMarker.setAlpha(0f);
-                mStartVisible = false;
-            }
-            startX = 0;
-        }
-
-        int endX = mEndPos - mOffset - mEndMarker.getWidth() + mMarkerRightInset;
-        if (endX + mEndMarker.getWidth() >= 0) {
-            if (!mEndVisible) {
-                // Delay this to avoid flicker
-                mHandler.postDelayed(new Runnable() {
-                    public void run() {
-                        mEndVisible = true;
-                        mEndMarker.setAlpha(1f);
-                    }
-                }, 0);
-            }
-        } else {
-            if (mEndVisible) {
-                mEndMarker.setAlpha(0f);
-                mEndVisible = false;
-            }
-            endX = 0;
-        }
-
-        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(
-                startX,
-                mMarkerTopOffset,
-                -mStartMarker.getWidth(),
-                -mStartMarker.getHeight());
-        mStartMarker.setLayoutParams(params);
-
-        params = new RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(
-                endX,
-                mWaveformView.getMeasuredHeight() - mEndMarker.getHeight() - mMarkerBottomOffset,
-                -mStartMarker.getWidth(),
-                -mStartMarker.getHeight());
-        mEndMarker.setLayoutParams(params);
     }
 
     private synchronized void handlePause() {
@@ -520,6 +404,7 @@ public class MainActivity extends Activity
         if (chunk == null){
             mStartPos = mWaveformView.secondsToPixels(0.0);
             mEndPos = mWaveformView.secondsToPixels(15.0);
+            mPlayChunkIdx = 0;
             return;
         }
 
