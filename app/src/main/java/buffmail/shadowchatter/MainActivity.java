@@ -2,6 +2,8 @@ package buffmail.shadowchatter;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
@@ -19,6 +21,7 @@ public class MainActivity extends Activity
         implements WaveformView.WaveformListener {
 
     private final String TAG = "MainActivity";
+    private final String PLAYCHUNK_IDX_KEY = "PLAYCHUNK_IDX_KEY";
 
     private ProgressDialog mProgressDialog;
     private long mLoadingLastUpdateTime;
@@ -176,6 +179,7 @@ public class MainActivity extends Activity
         mOffset = 0;
         mOffsetGoal = 0;
         mFlingVelocity = 0;
+        mPlayChunkIdx = getPreferences(Context.MODE_PRIVATE).getInt(PLAYCHUNK_IDX_KEY, 0);
         resetPositions();
         if (mEndPos > mMaxPos)
             mEndPos = mMaxPos;
@@ -405,6 +409,9 @@ public class MainActivity extends Activity
             mStartPos = mWaveformView.secondsToPixels(0.0);
             mEndPos = mWaveformView.secondsToPixels(15.0);
             mPlayChunkIdx = 0;
+            SharedPreferences.Editor edit = getPreferences(Context.MODE_PRIVATE).edit();
+            edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
+            edit.commit();
             return;
         }
 
@@ -501,6 +508,9 @@ public class MainActivity extends Activity
 
                 handlePause();
                 ++mPlayChunkIdx;
+                SharedPreferences.Editor edit = getPreferences(Context.MODE_PRIVATE).edit();
+                edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
+                edit.commit();
                 resetPositions();
                 onPlay(mStartPos);
             }
@@ -515,6 +525,9 @@ public class MainActivity extends Activity
 
                 handlePause();
                 --mPlayChunkIdx;
+                SharedPreferences.Editor edit = getPreferences(Context.MODE_PRIVATE).edit();
+                edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
+                edit.commit();
                 resetPositions();
                 onPlay(mStartPos);
             }
@@ -530,5 +543,4 @@ public class MainActivity extends Activity
             mPlayButton.setContentDescription(getResources().getText(R.string.play));
         }
     }
-
 }
