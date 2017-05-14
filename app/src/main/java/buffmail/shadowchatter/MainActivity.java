@@ -25,7 +25,6 @@ public class MainActivity extends Activity
 
     private ProgressDialog mProgressDialog;
     private long mLoadingLastUpdateTime;
-    private Boolean mLoadingKeepGoing;
     private SoundFile mSoundFile;
     private File mFile;
     private SamplePlayer mPlayer;
@@ -121,7 +120,6 @@ public class MainActivity extends Activity
         mFile = new File(filename);
         mLoadingLastUpdateTime = getCurrentTime();
 
-        mLoadingKeepGoing = true;
         mProgressDialog = new ProgressDialog(MainActivity.this);
         mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         mProgressDialog.setTitle("Loading...");
@@ -136,7 +134,7 @@ public class MainActivity extends Activity
                                     (int)(mProgressDialog.getMax() * fractionComplete));
                             mLoadingLastUpdateTime = now;
                         }
-                        return mLoadingKeepGoing;
+                        return true;
                     }
                 };
 
@@ -155,14 +153,11 @@ public class MainActivity extends Activity
                 }
 
                 mProgressDialog.dismiss();
-                if (mLoadingKeepGoing) {
-                    Runnable runnable = new Runnable() {
-                        public void run() {
-                            finishOpeningSoundFile();
-                        }
-                    };
-                    mHandler.post(runnable);
-                }
+                mHandler.post(new Runnable() {
+                    public void run() {
+                        finishOpeningSoundFile();
+                    }
+                });
             }
         };
         mLoadingSoundFileThread.start();

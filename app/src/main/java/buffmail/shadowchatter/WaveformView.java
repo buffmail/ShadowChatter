@@ -602,9 +602,7 @@ public class WaveformView extends View {
             }
         }
 
-        if (numFrames > 5000) {
-            mZoomLevel = 3;
-        } else if (numFrames > 1000) {
+        if (numFrames > 1000) {
             mZoomLevel = 2;
         } else if (numFrames > 300) {
             mZoomLevel = 1;
