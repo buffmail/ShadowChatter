@@ -393,6 +393,9 @@ public class SoundFile {
             mFrameLens[i] = frameLens;  // totally not accurate...
             mFrameOffsets[i] = (int)(i * (1000 * mAvgBitRate / 8) *  //  = i * frameLens
                     ((float)getSamplesPerFrame() / mSampleRate));
+
+            if (mProgressListener != null)
+                mProgressListener.reportProgress((float)(i) / mNumFrames);
         }
         mDecodedSamples.rewind();
         // DumpSamples();  // Uncomment this line to dump the samples in a TSV file.
