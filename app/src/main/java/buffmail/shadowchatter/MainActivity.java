@@ -16,6 +16,7 @@ import android.widget.TextView;
 import java.io.File;
 
 import buffmail.shadowchatter.soundfile.SoundFile;
+import buffmail.shadowchatter.SoundUtil.PlayChunk;
 
 public class MainActivity extends Activity
         implements WaveformView.WaveformListener {
@@ -49,6 +50,7 @@ public class MainActivity extends Activity
     private int mStartPos;
     private int mEndPos;
     private int mPlayChunkIdx;
+    private PlayChunk[] mPlayChunks;
 
     private boolean mKeyDown;
 
@@ -75,6 +77,7 @@ public class MainActivity extends Activity
         mHandler = new Handler();
 
         mPlayChunkIdx = 0;
+        mPlayChunks = null;
 
         loadGui();
 
@@ -164,8 +167,11 @@ public class MainActivity extends Activity
     }
 
     private void finishOpeningSoundFile() {
+        mPlayChunks = SoundUtil.GetPlayChunks(
+                mSoundFile.getFrameGains(), mSoundFile.getSampleRate(), mSoundFile.getSamplesPerFrame());
         mWaveformView.setSoundFile(mSoundFile);
         mWaveformView.recomputeHeights(mDensity);
+        mWaveformView.updatePlayChunks(mPlayChunks);
 
         mMaxPos = mWaveformView.maxPos();
 
@@ -274,12 +280,6 @@ public class MainActivity extends Activity
         enableDisableButtons();
 
         mMaxPos = 0;
-        if (mSoundFile != null && !mWaveformView.hasSoundFile()) {
-            mWaveformView.setSoundFile(mSoundFile);
-            mWaveformView.recomputeHeights(mDensity);
-            mMaxPos = mWaveformView.maxPos();
-        }
-
         updateDisplay();
     }
 
@@ -399,7 +399,8 @@ public class MainActivity extends Activity
         }
     }
     private void resetPositions() {
-        WaveformView.PlayChunk chunk = mWaveformView.getChunk(mPlayChunkIdx);
+        assert mPlayChunks != null;
+        PlayChunk chunk = mPlayChunks[mPlayChunkIdx];
         if (chunk == null){
             mStartPos = mWaveformView.secondsToPixels(0.0);
             mEndPos = mWaveformView.secondsToPixels(15.0);
@@ -413,7 +414,7 @@ public class MainActivity extends Activity
         mStartPos = mWaveformView.secondsToPixels(chunk.startSec);
         mEndPos = mWaveformView.secondsToPixels(chunk.endSec);
 
-        String position = String.format("%d / %d", mPlayChunkIdx + 1, mWaveformView.getChunkNums());
+        String position = String.format("%d / %d", mPlayChunkIdx + 1, mPlayChunks.length);
         mPositionText.setText(position);
     }
 
@@ -497,7 +498,7 @@ public class MainActivity extends Activity
     private OnClickListener mFfwdListener = new OnClickListener() {
         public void onClick(View sender) {
             if (mIsPlaying) {
-                final int chunkCount = mWaveformView.getChunkNums();
+                final int chunkCount = mPlayChunks.length;
                 if (mPlayChunkIdx + 1 >= chunkCount)
                     return;
 
