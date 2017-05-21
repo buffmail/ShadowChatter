@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
@@ -29,12 +28,6 @@ public class MainActivity extends Activity
     private SoundFile mSoundFile;
     private File mFile;
     private SamplePlayer mPlayer;
-    private boolean mTouchDragging;
-    private float mTouchStart;
-    private int mTouchInitialOffset;
-    private long mWaveformTouchStartMsec;
-    private int mPlayStartMsec;
-    private int mPlayEndMsec;
     private Handler mHandler;
     private boolean mIsPlaying;
     private WaveformView mWaveformView;
@@ -176,8 +169,6 @@ public class MainActivity extends Activity
 
         mMaxPos = mWaveformView.maxPos();
 
-        mTouchDragging = false;
-
         mOffset = 0;
         mOffsetGoal = 0;
         mFlingVelocity = 0;
@@ -187,44 +178,7 @@ public class MainActivity extends Activity
             mEndPos = mMaxPos;
     }
 
-    public void waveformTouchStart(float x) {
-        mTouchDragging = true;
-        mTouchStart = x;
-        mTouchInitialOffset = mOffset;
-        mFlingVelocity = 0;
-        mWaveformTouchStartMsec = getCurrentTime();
-        Log.i(TAG, String.format("waveformTouchStart : %.1f", x));
-    }
-
-    public void waveformTouchMove(float x) {
-        mOffset = trap((int)(mTouchInitialOffset * (mTouchStart - x)));
-        updateDisplay();
-        Log.i(TAG, String.format("waveformTouchMove : %.1f", x));
-    }
-    public void waveformTouchEnd() {
-        mTouchDragging = false;
-        mOffsetGoal = mOffset;
-
-        long elapsedMsec = getCurrentTime() - mWaveformTouchStartMsec;
-        if (elapsedMsec < 300) {
-            if (mIsPlaying) {
-                int seekMsec = mWaveformView.pixelsToMillisecs(
-                        (int)(mTouchStart + mOffset));
-                if (seekMsec >= mPlayStartMsec &&
-                        seekMsec < mPlayEndMsec) {
-                    mPlayer.seekTo(seekMsec);
-                } else {
-                    handlePause();
-                }
-            } else {
-                onPlay((int)(mTouchStart + mOffset));
-            }
-        }
-        Log.i(TAG, String.format("waveformTouchEnd"));
-    }
-
     public void waveformFling(float vx) {
-        mTouchDragging = false;
         mOffsetGoal = mOffset;
         mFlingVelocity = (int)(-vx);
         updateDisplay();
@@ -292,58 +246,57 @@ public class MainActivity extends Activity
             int frames = mWaveformView.millisecsToPixels(now);
             mWaveformView.setPlayback(frames);
             setOffsetGoalNoUpdate(frames - mWidth / 2);
-            if (now >= mPlayEndMsec) {
+            int endMsec = mWaveformView.pixelsToMillisecs(mWaveformView.getEnd());
+            if (now >= endMsec) {
                 handlePause();
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        onPlay(mStartPos);
+                        PlayChunk chunk = mPlayChunks[mPlayChunkIdx];
+                        onPlay(chunk.startSec);
                     }
                 });
             }
         }
 
-        if (!mTouchDragging)
-        {
-            int offsetDelta;
+        int offsetDelta;
 
-            if (mFlingVelocity != 0) {
-                offsetDelta = mFlingVelocity / 30;
-                if (mFlingVelocity > 80) {
-                    mFlingVelocity -= 80;
-                } else if (mFlingVelocity < -80) {
-                    mFlingVelocity += 80;
-                } else {
-                    mFlingVelocity = 0;
-                }
-
-                mOffset += offsetDelta;
-
-                if (mOffset + mWidth / 2 > mMaxPos) {
-                    mOffset = mMaxPos - mWidth / 2;
-                    mFlingVelocity = 0;
-                }
-                if (mOffset < 0) {
-                    mOffset = 0;
-                    mFlingVelocity = 0;
-                }
-                mOffsetGoal = mOffset;
+        if (mFlingVelocity != 0) {
+            offsetDelta = mFlingVelocity / 30;
+            if (mFlingVelocity > 80) {
+                mFlingVelocity -= 80;
+            } else if (mFlingVelocity < -80) {
+                mFlingVelocity += 80;
             } else {
-                offsetDelta = mOffsetGoal - mOffset;
-
-                if (offsetDelta > 10)
-                    offsetDelta = offsetDelta / 10;
-                else if (offsetDelta > 0)
-                    offsetDelta = 1;
-                else if (offsetDelta < -10)
-                    offsetDelta = offsetDelta / 10;
-                else if (offsetDelta < 0)
-                    offsetDelta = -1;
-                else
-                    offsetDelta = 0;
-
-                mOffset += offsetDelta;
+                mFlingVelocity = 0;
             }
+
+            mOffset += offsetDelta;
+
+            if (mOffset + mWidth / 2 > mMaxPos) {
+                mOffset = mMaxPos - mWidth / 2;
+                mFlingVelocity = 0;
+            }
+            if (mOffset < 0) {
+                mOffset = 0;
+                mFlingVelocity = 0;
+            }
+            mOffsetGoal = mOffset;
+        } else {
+            offsetDelta = mOffsetGoal - mOffset;
+
+            if (offsetDelta > 10)
+                offsetDelta = offsetDelta / 10;
+            else if (offsetDelta > 0)
+                offsetDelta = 1;
+            else if (offsetDelta < -10)
+                offsetDelta = offsetDelta / 10;
+            else if (offsetDelta < 0)
+                offsetDelta = -1;
+            else
+                offsetDelta = 0;
+
+            mOffset += offsetDelta;
         }
 
         mWaveformView.setParameters(mStartPos, mEndPos, mOffset);
@@ -359,7 +312,7 @@ public class MainActivity extends Activity
         enableDisableButtons();
     }
 
-    private synchronized void onPlay(int startPosition) {
+    private synchronized void onPlay(double startSec) {
         if (mIsPlaying) {
             handlePause();
             return;
@@ -371,14 +324,7 @@ public class MainActivity extends Activity
         }
 
         try {
-            mPlayStartMsec = mWaveformView.pixelsToMillisecs(startPosition);
-            if (startPosition < mStartPos) {
-                mPlayEndMsec = mWaveformView.pixelsToMillisecs(mStartPos);
-            } else if (startPosition > mEndPos) {
-                mPlayEndMsec = mWaveformView.pixelsToMillisecs(mMaxPos);
-            } else {
-                mPlayEndMsec = mWaveformView.pixelsToMillisecs(mEndPos);
-            }
+            final double start = startSec;
             mPlayer.setOnCompletionListener(new SamplePlayer.OnCompletionListener() {
                 @Override
                 public void onCompletion() {
@@ -386,14 +332,15 @@ public class MainActivity extends Activity
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            onPlay(mStartPos);
+                            onPlay(start);
                         }
                     });
                 }
             });
             mIsPlaying = true;
 
-            mPlayer.seekTo(mPlayStartMsec);
+            final int startMsec = (int)(startSec * 1000);
+            mPlayer.seekTo(startMsec);
             mPlayer.start();
             updateDisplay();
             enableDisableButtons();
@@ -403,6 +350,7 @@ public class MainActivity extends Activity
     }
     private void resetPositions() {
         assert mPlayChunks != null;
+
         PlayChunk chunk = mPlayChunks[mPlayChunkIdx];
         if (chunk == null){
             mStartPos = mWaveformView.secondsToPixels(0.0);
@@ -426,10 +374,6 @@ public class MainActivity extends Activity
     }
 
     private void setOffsetGoalNoUpdate(int offset) {
-        if (mTouchDragging) {
-            return;
-        }
-
         mOffsetGoal = offset;
         if (mOffsetGoal + mWidth / 2 > mMaxPos)
             mOffsetGoal = mMaxPos - mWidth / 2;
@@ -437,64 +381,14 @@ public class MainActivity extends Activity
             mOffsetGoal = 0;
     }
 
-    private void setOffsetGoalStart() {
-        setOffsetGoal(mStartPos - mWidth / 2);
-    }
-
-    private void setOffsetGoalStartNoUpdate() {
-        setOffsetGoalNoUpdate(mStartPos - mWidth / 2);
-    }
-
-    private void setOffsetGoalEnd() {
-        setOffsetGoal(mEndPos - mWidth / 2);
-    }
-
-    private void setOffsetGoalEndNoUpdate() {
-        setOffsetGoalNoUpdate(mEndPos - mWidth / 2);
-    }
-
-    private void setOffsetGoal(int offset) {
-        setOffsetGoalNoUpdate(offset);
-        updateDisplay();
-    }
-
-    private String formatTime(int pixels) {
-        if (mWaveformView != null && mWaveformView.isInitialized()) {
-            return formatDecimal(mWaveformView.pixelsToSeconds(pixels));
-        } else {
-            return "";
-        }
-    }
-
-    private String formatDecimal(double x) {
-        int xWhole = (int)x;
-        int xFrac = (int)(100 * (x - xWhole) + 0.5);
-
-        if (xFrac >= 100) {
-            xWhole++; //Round up
-            xFrac -= 100; //Now we need the remainder after the round up
-            if (xFrac < 10) {
-                xFrac *= 10; //we need a fraction that is 2 digits long
-            }
-        }
-
-        if (xFrac < 10)
-            return xWhole + ".0" + xFrac;
-        else
-            return xWhole + "." + xFrac;
-    }
-
-    private int trap(int pos) {
-        if (pos < 0)
-            return 0;
-        if (pos > mMaxPos)
-            return mMaxPos;
-        return pos;
-    }
-
     private OnClickListener mPlayListener = new OnClickListener() {
         public void onClick(View sender) {
-            onPlay(mStartPos);
+            if (mPlayChunks == null)
+                return;
+            assert mPlayChunkIdx >= mPlayChunks.length;
+
+            PlayChunk chunk = mPlayChunks[mPlayChunkIdx];
+            onPlay(chunk.startSec);
         }
     };
 
@@ -511,7 +405,8 @@ public class MainActivity extends Activity
                 edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
                 edit.commit();
                 resetPositions();
-                onPlay(mStartPos);
+                PlayChunk playChunk = mPlayChunks[mPlayChunkIdx];
+                onPlay(playChunk.startSec);
             }
         }
     };
@@ -532,7 +427,8 @@ public class MainActivity extends Activity
             edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
             edit.commit();
             resetPositions();
-            onPlay(mStartPos);
+            PlayChunk playChunk = mPlayChunks[mPlayChunkIdx];
+            onPlay(playChunk.startSec);
         }
     };
 
@@ -548,18 +444,18 @@ public class MainActivity extends Activity
                 edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
                 edit.commit();
                 resetPositions();
-                onPlay(mStartPos);
+                resetPositions();
+                PlayChunk playChunk = mPlayChunks[mPlayChunkIdx];
+                onPlay(playChunk.startSec);
             }
         }
     };
 
     private void enableDisableButtons() {
-        if (mIsPlaying) {
-            mPlayButton.setImageResource(android.R.drawable.ic_media_pause);
-            mPlayButton.setContentDescription(getResources().getText(R.string.stop));
-        } else {
-            mPlayButton.setImageResource(android.R.drawable.ic_media_play);
-            mPlayButton.setContentDescription(getResources().getText(R.string.play));
-        }
+        final int resId = mIsPlaying ?
+                android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play;
+        final String desc = mIsPlaying ? "Stop" : "Play";
+        mPlayButton.setImageResource(resId);
+        mPlayButton.setContentDescription(desc);
     }
 }

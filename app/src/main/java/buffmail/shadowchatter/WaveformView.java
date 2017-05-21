@@ -47,9 +47,6 @@ import buffmail.shadowchatter.SoundUtil.PlayChunk;
  */
 public class WaveformView extends View {
     public interface WaveformListener {
-        public void waveformTouchStart(float x);
-        public void waveformTouchMove(float x);
-        public void waveformTouchEnd();
         public void waveformFling(float x);
         public void waveformDraw();
         public void waveformZoomIn();
@@ -178,17 +175,6 @@ public class WaveformView extends View {
             return true;
         }
 
-        switch(event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                mListener.waveformTouchStart(event.getX());
-                break;
-            case MotionEvent.ACTION_MOVE:
-                mListener.waveformTouchMove(event.getX());
-                break;
-            case MotionEvent.ACTION_UP:
-                mListener.waveformTouchEnd();
-                break;
-        }
         return true;
     }
 
