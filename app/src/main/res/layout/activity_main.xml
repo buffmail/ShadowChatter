@@ -54,6 +54,16 @@
             android:contentDescription="@string/ffwd"
             android:src="@android:drawable/ic_media_next" />
 
+        <ImageButton
+            android:id="@+id/merge"
+            style="@android:style/MediaButton"
+            android:layout_width="64dip"
+            android:layout_height="52dip"
+            android:layout_marginBottom="6dip"
+            android:layout_marginRight="5dip"
+            android:layout_marginTop="6dip"
+            android:contentDescription="@string/merge"
+            android:src="@android:drawable/ic_input_add" />
     </LinearLayout>
 
     <LinearLayout style="@style/HorizontalDividerTop" />

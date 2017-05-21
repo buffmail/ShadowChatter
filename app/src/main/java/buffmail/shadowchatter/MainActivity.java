@@ -57,6 +57,7 @@ public class MainActivity extends Activity
     private ImageButton mPlayButton;
     private ImageButton mRewindButton;
     private ImageButton mFfwdButton;
+    private ImageButton mMergeButton;
 
     private TextView mPositionText;
 
@@ -273,6 +274,8 @@ public class MainActivity extends Activity
         mRewindButton.setOnClickListener(mRewindListener);
         mFfwdButton = (ImageButton)findViewById(R.id.ffwd);
         mFfwdButton.setOnClickListener(mFfwdListener);
+        mMergeButton = (ImageButton)findViewById(R.id.merge);
+        mMergeButton.setOnClickListener(mMergeListener);
         mPositionText = (TextView)findViewById(R.id.position_text);
         mWaveformView = (WaveformView)findViewById(R.id.waveform);
         mWaveformView.setListener(this);
@@ -510,6 +513,26 @@ public class MainActivity extends Activity
                 resetPositions();
                 onPlay(mStartPos);
             }
+        }
+    };
+
+    private OnClickListener mMergeListener = new OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (mPlayChunks == null)
+                return;
+            if (mPlayChunkIdx <= 0 || mPlayChunks.length == 1)
+                return;
+            handlePause();
+
+            mPlayChunks = SoundUtil.MergePlayChunks(mPlayChunks, mPlayChunkIdx);
+            mWaveformView.updatePlayChunks(mPlayChunks);
+            --mPlayChunkIdx;
+            SharedPreferences.Editor edit = getPreferences(Context.MODE_PRIVATE).edit();
+            edit.putInt(PLAYCHUNK_IDX_KEY, mPlayChunkIdx);
+            edit.commit();
+            resetPositions();
+            onPlay(mStartPos);
         }
     };
 

@@ -142,4 +142,23 @@ public class SoundUtil {
         }
         return playChunks;
     }
+
+    public static PlayChunk[] MergePlayChunks(PlayChunk[] prevChunks, int idx) {
+        if (idx == 0)
+            return prevChunks;
+
+        final int prevLength = prevChunks.length;
+        PlayChunk[] newPlayChunks = new PlayChunk[prevLength - 1];
+        for (int i = 0; i < idx - 1; ++i)
+            newPlayChunks[i] = prevChunks[i];
+
+        newPlayChunks[idx - 1] = new PlayChunk(
+                prevChunks[idx - 1].startSec,
+                prevChunks[idx].endSec);
+
+        for (int i = idx+1; i < prevLength; ++i)
+            newPlayChunks[i-1] = prevChunks[i];
+
+        return newPlayChunks;
+    }
 }
